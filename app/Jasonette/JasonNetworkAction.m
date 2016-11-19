@@ -14,11 +14,11 @@
 }
 - (void)auth{
     __weak typeof(self) weakSelf = self;
-
+    
     if(self.options){
         
         AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
-
+        
         
         NSString *url = self.options[@"url"];
         NSString *domain = [[NSURL URLWithString:url] host];
@@ -163,7 +163,7 @@
 
 - (void)request{
     __weak typeof(self) weakSelf = self;
-
+    
     if(self.options){
         AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
         NSString *url = self.options[@"url"];
@@ -207,7 +207,7 @@
             [acceptableContentTypes addObject:@"application/atomsvc+xml"];
             serializer.acceptableContentTypes = acceptableContentTypes;
             manager.responseSerializer = serializer;
-
+            
         } else if(dataType && [dataType isEqualToString:@"raw"]){
             manager.responseSerializer = [AFHTTPResponseSerializer serializer];
             manager.responseSerializer.acceptableContentTypes = nil;
@@ -230,7 +230,7 @@
             }
         }
         
-    
+        
         // Set params if specified  ("data")
         NSMutableDictionary *parameters;
         if(self.options[@"data"]){
@@ -387,6 +387,7 @@
 
 // UPLOAD TO S3
 - (void)upload{
+    NSLog(@"upload....");
     if(self.options){
         NSString *contentType = self.options[@"Content-Type"];      //Content-Type is deprecated. Use content_type
         if(!contentType){
@@ -397,7 +398,6 @@
         __weak typeof(self) weakSelf = self;
         [[Jason client] loading:YES];
         dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
-            
             NSData *mediaData;
             NSString *guid = [[NSUUID new] UUIDString];
             if(contentType){
@@ -406,9 +406,13 @@
                 // such as vidgif
                 mediaData = self.options[@"data"];
                 NSArray *tokens = [contentType componentsSeparatedByString:@"/"];
+                
+                NSLog(@"wtf");
+
                 if(tokens && tokens.count > 1){
                     NSString *extension = [tokens lastObject];
                     NSString *upload_filename = [NSString stringWithFormat:@"%@.%@", guid, extension];
+                    NSLog(@"upload_filename -> %@", upload_filename);
                     NSString *tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:upload_filename];
                     
                     NSError *error;
@@ -454,7 +458,7 @@
         file_path = upload_filename;
     }
     NSMutableDictionary *parameters = [@{@"bucket": bucket,
-                                        @"path": file_path,
+                                         @"path": file_path,
                                          @"content-type": contentType} mutableCopy];
     if(session && session.count > 0 && session[@"body"]){
         for(NSString *key in session[@"body"]){
@@ -492,17 +496,18 @@
             }
         }];
         [upload_task resume];
-
+        
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
         [self s3UploadDidFail];
     }];
 }
+
 - (void)s3UploadDidFail
 {
     [[Jason client] loading:NO];
     [[TWMessageBarManager sharedInstance] showMessageWithTitle:@"Error"
-                                               description:@"There was an error sending the image. Please try again."
-                                                      type:TWMessageBarMessageTypeError];
+                                                   description:@"There was an error sending the image. Please try again."
+                                                          type:TWMessageBarMessageTypeError];
     [[Jason client] finish];
 }
 - (void)s3UploadDidSucceed: (NSString *)upload_filename{
