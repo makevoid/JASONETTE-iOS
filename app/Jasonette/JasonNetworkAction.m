@@ -387,7 +387,6 @@
 
 // UPLOAD TO S3
 - (void)upload{
-    NSLog(@"upload....");
     if(self.options){
         NSString *contentType = self.options[@"Content-Type"];      //Content-Type is deprecated. Use content_type
         if(!contentType){
@@ -398,6 +397,7 @@
         __weak typeof(self) weakSelf = self;
         [[Jason client] loading:YES];
         dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+            
             NSData *mediaData;
             NSString *guid = [[NSUUID new] UUIDString];
             if(contentType){
@@ -406,13 +406,9 @@
                 // such as vidgif
                 mediaData = self.options[@"data"];
                 NSArray *tokens = [contentType componentsSeparatedByString:@"/"];
-                
-                NSLog(@"wtf");
-
                 if(tokens && tokens.count > 1){
                     NSString *extension = [tokens lastObject];
                     NSString *upload_filename = [NSString stringWithFormat:@"%@.%@", guid, extension];
-                    NSLog(@"upload_filename -> %@", upload_filename);
                     NSString *tmpFile = [NSTemporaryDirectory() stringByAppendingPathComponent:upload_filename];
                     
                     NSError *error;
@@ -501,7 +497,6 @@
         [self s3UploadDidFail];
     }];
 }
-
 - (void)s3UploadDidFail
 {
     [[Jason client] loading:NO];
