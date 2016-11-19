@@ -453,49 +453,29 @@
     } else {
         file_path = upload_filename;
     }
-    NSMutableDictionary *parameters = [@{@"bucket": bucket,
-                                         @"path": file_path,
-                                         @"content-type": contentType} mutableCopy];
-    if(session && session.count > 0 && session[@"body"]){
-        for(NSString *key in session[@"body"]){
-            parameters[key] = session[@"body"][key];
-        }
-    }
+
     
-    [manager.operationQueue cancelAllOperations];
-    [manager GET:sign_url parameters:parameters progress:^(NSProgress * _Nonnull downloadProgress) {
-        // Nothing
-    } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        // Ignore if the url is different
-        if(![JasonHelper isURL:task.originalRequest.URL equivalentTo:sign_url]) return;
-        if(!responseObject[@"$jason"]){
-            [[Jason client] error:@{@"description": @"The server must return a signed url wrapped with '$jason' key"}];
-            return;
+    NSMutableURLRequest *req = [[NSMutableURLRequest alloc] init];
+    [req setAllHTTPHeaderFields:@{@"Content-Type": contentType}];
+    [req setHTTPBody:mediaData]; // the key is here
+    [req setHTTPMethod:@"PUT"];
+//    [req setURL:[NSURL URLWithString:responseObject[@"$jason"]]];
+    [req setURL:[NSURL URLWithString:storage[@"url"]]];
+    
+    NSURLSessionDataTask *upload_task = [manager dataTaskWithRequest:req completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
+        if (!error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self s3UploadDidSucceed: upload_filename];
+            });
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NSLog(@"error = %@", error);
+                [self s3UploadDidFail];
+            });
         }
-        
-        NSMutableURLRequest *req = [[NSMutableURLRequest alloc] init];
-        [req setAllHTTPHeaderFields:@{@"Content-Type": contentType}];
-        [req setHTTPBody:mediaData]; // the key is here
-        [req setHTTPMethod:@"PUT"];
-        [req setURL:[NSURL URLWithString:responseObject[@"$jason"]]];
-        
-        NSURLSessionDataTask *upload_task = [manager dataTaskWithRequest:req completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
-            if (!error) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self s3UploadDidSucceed: upload_filename];
-                });
-            } else {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    NSLog(@"error = %@", error);
-                    [self s3UploadDidFail];
-                });
-            }
-        }];
-        [upload_task resume];
-        
-    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        [self s3UploadDidFail];
     }];
+    [upload_task resume];
+    
 }
 - (void)s3UploadDidFail
 {
